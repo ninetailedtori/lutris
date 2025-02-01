@@ -50,7 +50,7 @@ class WebConnectDialog(ModalDialog):
 
         troubleshooter_btn = Gtk.Button(label=_("Having trouble signing in?"))
         troubleshooter_btn.connect("clicked", self.get_troubleshooter)
-        self.action_area.pack_start(troubleshooter_btn, False, False, 5) # pylint: disable=no-member
+        self.action_area.pack_start(troubleshooter_btn, False, False, 0) # pylint: disable=no-member
 
         webkit_settings = self.webview.get_settings()
 
@@ -164,20 +164,20 @@ class Troubleshooter(ModalDialog):
         self.set_default_size(500,350)
         label = Gtk.Label(label=_("If you are having trouble logging in, follow these steps:\n"
                                   "1. Copy the following link and open it in a browser:\n"))
-        self.vbox.pack_start(label, False, False, 5) # pylint: disable=no-member
+        self.vbox.pack_start(label, False, False, 0) # pylint: disable=no-member
         link_label = Gtk.Label()
         link_label.set_markup(f'<a href="{self.service.login_url}">{self.service.login_url}</a>')
         link_label.set_selectable(True)
-        self.vbox.pack_start(link_label, False, False, 5) # pylint: disable=no-member
+        self.vbox.pack_start(link_label, False, False, 0) # pylint: disable=no-member
         copy_button = Gtk.Button(label=_("Copy Link"))
         copy_button.connect("clicked", self.copy_link)
-        self.vbox.pack_start(copy_button, False, False, 5) # pylint: disable=no-member
+        self.vbox.pack_start(copy_button, False, False, 0) # pylint: disable=no-member
         label2 = Gtk.Label(label=_("2. Sign into your service from the browser, by following the login steps stated there.\n"
                                    "3. Copy the full resulting OAuth2 success link from your browser then paste it below.\n"
                                    "4. Finally, click continue.\n"))
-        self.vbox.pack_start(label2, False, False, 5) # pylint: disable=no-member
+        self.vbox.pack_start(label2, False, False, 0) # pylint: disable=no-member
         self.entry = Gtk.Entry()
-        self.vbox.pack_start(self.entry, False, False, 5) # pylint: disable=no-member
+        self.vbox.pack_start(self.entry, False, False, 0) # pylint: disable=no-member
         continue_btn = Gtk.Button(label=_("Continue"))
         continue_btn.connect("clicked", self.troubleshooter_callback)
         self.action_area.pack_end(continue_btn, False, False, 0) # pylint: disable=no-member
@@ -196,7 +196,10 @@ class Troubleshooter(ModalDialog):
             self.service.login_callback(oauth2_request)
             self.destroy()
         else:
-            # Show an error message
+            # Request user to enter something. This should be expanded to include cases where
+            # the user also enters an OAuth request that is badly formed. In the case where the
+            # OAuth request is invalid, it should also possibly send the user back to this screen.
+            # However this could be handled in base.login().
             dialog = Gtk.MessageDialog(
                     transient_for=self,
                     flags=0,
