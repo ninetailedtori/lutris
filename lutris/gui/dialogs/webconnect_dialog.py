@@ -13,7 +13,7 @@ try:
     gi.require_version("WebKit2", "4.1")
 except ValueError:
     gi.require_version("WebKit2", "4.0")
-from gi.repository import WebKit2
+from gi.repository import WebKit2, Gdk, Gtk
 
 from lutris.gui.dialogs import ModalDialog
 
@@ -48,6 +48,10 @@ class WebConnectDialog(ModalDialog):
         self.vbox.set_border_width(0)  # pylint: disable=no-member
         self.vbox.pack_start(self.webview, True, True, 0)  # pylint: disable=no-member
 
+        troubleshooter_btn = Gtk.Button(label=_("Having trouble signing in?"))
+        troubleshooter_btn.connect("clicked", self.get_troubleshooter)
+        self.action_area.pack_start(troubleshooter_btn, False, False, 5) # pylint: disable=no-member
+
         webkit_settings = self.webview.get_settings()
 
         # Set a User Agent
@@ -64,6 +68,10 @@ class WebConnectDialog(ModalDialog):
         webkit_settings.set_enable_webgl(False)
         # self.enable_inspector()
         self.show_all()
+
+    def get_troubleshooter(self):
+        troubleshooter_dialog = Troubleshooter(self.service, parent=self)
+        troubleshooter_dialog.show()
 
     def enable_inspector(self):
         """If you want a full blown Webkit inspector, call this"""
@@ -145,3 +153,59 @@ class WebPopupDialog(ModalDialog):
     def on_webview_close(self, webview):
         self.close()
         return True
+
+
+class Troubleshooter(ModalDialog):
+    """Modal for launching OAuth request in external browser and accepting a success token."""
+
+    def __init__(self, service, parent=None):
+        super().__init__(title=_("Troubleshooter"), parent=parent)
+        self.service = service
+        self.set_default_size(500,350)
+        label = Gtk.Label(label=_("If you are having trouble logging in, follow these steps:\n"
+                                  "1. Copy the following link and open it in a browser:\n"))
+        self.vbox.pack_start(label, False, False, 5) # pylint: disable=no-member
+        link_label = Gtk.Label()
+        link_label.set_markup(f'<a href="{self.service.login_url}">{self.service.login_url}</a>')
+        link_label.set_selectable(True)
+        self.vbox.pack_start(link_label, False, False, 5) # pylint: disable=no-member
+        copy_button = Gtk.Button(label=_("Copy Link"))
+        copy_button.connect("clicked", self.copy_link)
+        self.vbox.pack_start(copy_button, False, False, 5) # pylint: disable=no-member
+        label2 = Gtk.Label(label=_("2. Sign into your service from the browser, by following the login steps stated there.\n"
+                                   "3. Copy the full resulting OAuth2 success link from your browser then paste it below.\n"
+                                   "4. Finally, click continue.\n"))
+        self.vbox.pack_start(label2, False, False, 5) # pylint: disable=no-member
+        self.entry = Gtk.Entry()
+        self.vbox.pack_start(self.entry, False, False, 5) # pylint: disable=no-member
+        continue_btn = Gtk.Button(label=_("Continue"))
+        continue_btn.connect("clicked", self.troubleshooter_callback)
+        self.action_area.pack_end(continue_btn, False, False, 0) # pylint: disable=no-member
+        self.show_all()
+
+    def copy_link(self, widget):
+            # Copy the link to the clipboard
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_text(self.service.login_url, -1)
+
+    def troubleshooter_callback(self, widget):
+        """Handle pasted link."""
+        oauth2_request = self.entry.get_text()
+        if oauth2_request:
+            self.service.is_login_in_progress = False
+            self.service.login_callback(oauth2_request)
+            self.destroy()
+        else:
+            # Show an error message
+            dialog = Gtk.MessageDialog(
+                    transient_for=self,
+                    flags=0,
+                    message_type=Gtk.MessageType.ERROR,
+                    buttons=Gtk.ButtonsType.OK,
+                    text=_("Please paste the OAuth2 request"),
+                )
+            dialog.format_secondary_text(
+                    _("You must provide the OAuth2 request for the login to continue.")
+                )
+            dialog.run()
+            dialog.destroy()
